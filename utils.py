@@ -16,15 +16,16 @@ def get_coords(location):
 def get_air_quality(lat, lon):
     url = f"http://api.openweathermap.org/data/2.5/air_pollution?lat={lat}&lon={lon}&appid={API_KEY}"
     res = requests.get(url).json()
-    
     if "list" in res and res["list"]:
         data = res["list"][0]
         aqi = data.get("main", {}).get("aqi")
         components = data.get("components", {})
         if aqi is not None:
-            return {"aqi": aqi, "components": components}
-
-    return {"aqi": 0, "components": {}}
+            return {
+                "aqi": aqi,  # ✅ FLATTENED structure
+                "components": components
+            }
+    return {} 
 
 def get_weather_data(location, unit):
     coords, err = get_coords(location)
