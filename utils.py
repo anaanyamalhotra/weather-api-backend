@@ -1,17 +1,23 @@
-
 import requests
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-API_KEY = os.getenv("OPENWEATHER_API_KEY")
+from fastapi import HTTPException
+from config import API_KEY
 
 def get_coords(location):
+    if "," in location and location.split(",")[0].strip().isdigit():
+        zip_code, country_code = location.split(",", 1)
+        zip_url = f"http://api.openweathermap.org/data/2.5/weather?zip={zip_code.strip()},{country_code.strip()}&appid={API_KEY}"
+        res = requests.get(zip_url)
+        if res.status_code == 200:
+            data = res.json()
+            return {"lat": data["coord"]["lat"], "lon": data["coord"]["lon"]}, None
+        else:
+            return None, "Invalid ZIP or country code."
+
     geo_url = f"http://api.openweathermap.org/geo/1.0/direct?q={location}&limit=1&appid={API_KEY}"
-    res = requests.get(geo_url).json()
-    if res:
-        return res[0]["lat"], res[0]["lon"]
-    return None, None
+    geo_res = requests.get(geo_url).json()
+    if geo_res:
+        return {"lat": geo_res[0]["lat"], "lon": geo_res[0]["lon"]}, None
+    return None, "Location not found."
 
 def get_air_quality(lat, lon):
     url = f"http://api.openweathermap.org/data/2.5/air_pollution?lat={lat}&lon={lon}&appid={API_KEY}"
@@ -22,10 +28,10 @@ def get_air_quality(lat, lon):
         components = data.get("components", {})
         if aqi is not None:
             return {
-                "aqi": aqi,  # ✅ FLATTENED structure
+                "aqi": aqi,
                 "components": components
             }
-    return {} 
+    return {"aqi": 0, "components": {}}
 
 def get_weather_data(location, unit):
     coords, err = get_coords(location)
@@ -35,22 +41,19 @@ def get_weather_data(location, unit):
     lat, lon = coords["lat"], coords["lon"]
     u = "metric" if unit == "metric" else "imperial"
 
-    try:
-        weather = requests.get(
-            f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&units={u}&appid={API_KEY}"
-        ).json()
+    weather = requests.get(
+        f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&units={u}&appid={API_KEY}"
+    ).json()
 
-        forecast = requests.get(
-            f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&units={u}&appid={API_KEY}"
-        ).json()
+    forecast = requests.get(
+        f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&units={u}&appid={API_KEY}"
+    ).json()
 
-        aqi = get_air_quality(lat, lon)
+    aqi = get_air_quality(lat, lon)
 
-        return {
-            "weather": weather,
-            "forecast": forecast,
-            "coords": coords,
-            "aqi": aqi  # Always dict (already flattened earlier)
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Weather fetch failed: {str(e)}
+    return {
+        "weather": weather,
+        "forecast": forecast,
+        "coords": coords,
+        "aqi": aqi
+    }
