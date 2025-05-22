@@ -27,17 +27,26 @@ def get_air_quality(lat, lon):
     return {"aqi": 0, "components": {}}
 
 def get_weather_data(location, unit):
-    lat, lon = get_coords(location)
-    if lat is None:
-        return {"error": "Location not found"}
-    weather_url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&units={unit}&appid={API_KEY}"
-    forecast_url = f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&units={unit}&appid={API_KEY}"
-    weather = requests.get(weather_url).json()
-    forecast = requests.get(forecast_url).json()
+    coords, err = get_coords(location)
+    if err:
+        raise HTTPException(status_code=404, detail=err)
+
+    lat, lon = coords["lat"], coords["lon"]
+    u = "metric" if unit == "metric" else "imperial"
+
+    weather = requests.get(
+        f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&units={u}&appid={API_KEY}"
+    ).json()
+
+    forecast = requests.get(
+        f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&units={u}&appid={API_KEY}"
+    ).json()
+
     aqi = get_air_quality(lat, lon)
+
     return {
         "weather": weather,
         "forecast": forecast,
-        "aqi": aqi,
-        "coords": {"lat": lat, "lon": lon}
+        "coords": coords,
+        "aqi": aqi  # ✅ Always a dict
     }
