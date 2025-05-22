@@ -29,25 +29,28 @@ def get_air_quality(lat, lon):
 
 def get_weather_data(location, unit):
     coords, err = get_coords(location)
-    if err:
-        raise HTTPException(status_code=404, detail=err)
+    if err or not coords:
+        raise HTTPException(status_code=404, detail="Location not found.")
 
     lat, lon = coords["lat"], coords["lon"]
     u = "metric" if unit == "metric" else "imperial"
 
-    weather = requests.get(
-        f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&units={u}&appid={API_KEY}"
-    ).json()
+    try:
+        weather = requests.get(
+            f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&units={u}&appid={API_KEY}"
+        ).json()
 
-    forecast = requests.get(
-        f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&units={u}&appid={API_KEY}"
-    ).json()
+        forecast = requests.get(
+            f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&units={u}&appid={API_KEY}"
+        ).json()
 
-    aqi = get_air_quality(lat, lon)
+        aqi = get_air_quality(lat, lon)
 
-    return {
-        "weather": weather,
-        "forecast": forecast,
-        "coords": coords,
-        "aqi": aqi  # ✅ Always a dict
-    }
+        return {
+            "weather": weather,
+            "forecast": forecast,
+            "coords": coords,
+            "aqi": aqi  # Always dict (already flattened earlier)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Weather fetch failed: {str(e)}
