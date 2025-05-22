@@ -1,10 +1,10 @@
-
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from models import Base, WeatherRecord, engine, SessionLocal
 from schemas import WeatherCreate, WeatherUpdate
 import crud
+from utils import get_weather_data
 import uvicorn
 
 Base.metadata.create_all(bind=engine)
@@ -20,8 +20,10 @@ app.add_middleware(
 
 @app.get("/weather")
 def get_weather(location: str = Query(...), unit: str = Query("metric")):
-    from utils import get_weather_data
-    return get_weather_data(location, unit)
+    try:
+        return get_weather_data(location, unit)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch weather: {str(e)}")
 
 @app.post("/records/")
 def create_record(record: WeatherCreate):
